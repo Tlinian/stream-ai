@@ -1,0 +1,22 @@
+name: Question
+description: 提出一个问题或讨论
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: 问题
+      description: 请描述你的问题
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 背景信息
+      description: 相关的上下文信息
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已尝试的方案
+      description: 你尝试过什么方法

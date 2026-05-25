@@ -1,0 +1,89 @@
+plugins {
+    id 'java'
+    id 'idea'
+    id 'com.diffplug.spotless' version "${spotlessVersion}"
+}
+
+group = project.property('group')
+version = getGitTag()
+
+static def getGitTag() {
+    var version = 'git describe --tags'.execute().text.trim()
+    return version.isEmpty() ? "0.0.0" : version
+}
+
+java {
+    sourceCompatibility = JavaVersion.toVersion(project.property('javaVersion'))
+    targetCompatibility = JavaVersion.toVersion(project.property('javaVersion'))
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Lombok
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+    testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    // SLF4J API
+    implementation "org.slf4j:slf4j-api:${slf4jVersion}"
+
+    // Log4j2 + SLF4J bridge
+    implementation "org.apache.logging.log4j:log4j-core:${log4j2Version}"
+    implementation "org.apache.logging.log4j:log4j-slf4j2-impl:${log4j2Version}"
+
+    // Anthropic Java SDK
+    implementation "com.anthropic:anthropic-java:${anthropicJavaVersion}"
+
+    // Security constraints for transitive dependencies
+    constraints {
+        implementation("com.squareup.okio:okio:3.17.0") {
+            because 'Fix CVE in okio (WS-2026-0003 and others)'
+        }
+        implementation("com.squareup.okhttp3:okhttp:4.12.0") {
+            because 'Latest stable 4.x, okio constraint will override transitive'
+        }
+    }
+
+    // Test
+    testImplementation "junit:junit:${junitVersion}"
+}
+
+// Spotless configuration
+spotless {
+    java {
+        googleJavaFormat("${googleJavaFormatVersion}")
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+// IDEA - enable annotation processing for Lombok
+idea {
+    module {
+        downloadSources = true
+    }
+}
+
+// Fat JAR - override default jar task
+jar {
+    archiveClassifier.set('')
+    manifest {
+        attributes(
+            'Main-Class': "${project.group}.StreamAiApplication"
+        )
+    }
+    from {
+        configurations.runtimeClasspath.collect { file ->
+            file.isDirectory() ? file : zipTree(file)
+        }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    // Exclude signature files to avoid security exceptions in fat JAR
+    exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
+}

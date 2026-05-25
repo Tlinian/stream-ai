@@ -1,0 +1,44 @@
+# CI Build - Gradle 构建流水线
+#
+# 触发时机：每次向 main 或 master 分支提交 Pull Request / Merge Request 时自动执行
+# 执行内容：clean + build（含编译、spotless 代码格式检查）
+# JDK 版本：17
+#
+
+name: CI Build
+
+on:
+  # 仅在 PR 创建或更新时触发，不监听日常 push
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  build:
+    # 使用最新 Ubuntu 环境
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 检出代码仓库
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. 检查提交信息格式是否符合 Conventional Commits 规范
+      - name: Check commit message format
+        uses: wagoid/commitlint-github-action@v6
+
+      # 3. 安装 JDK 17（Eclipse Temurin 发行版）
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # 4. 初始化 Gradle，自动缓存依赖以加速后续构建
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # 5. 执行 clean build（编译 + 测试 + spotless 格式检查）
+      - name: Build with Gradle
+        run: ./gradlew clean build
