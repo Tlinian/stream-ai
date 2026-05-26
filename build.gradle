@@ -1,6 +1,8 @@
 plugins {
     id 'java'
     id 'idea'
+    id 'checkstyle'
+    id 'jacoco'
     id 'com.diffplug.spotless' version "${spotlessVersion}"
 }
 
@@ -15,6 +17,19 @@ static def getGitTag() {
 java {
     sourceCompatibility = JavaVersion.toVersion(project.property('javaVersion'))
     targetCompatibility = JavaVersion.toVersion(project.property('javaVersion'))
+}
+
+// 编译编码设置为 UTF-8（支持中文注释）
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+// Checkstyle 配置（使用 Google Java Style）
+checkstyle {
+    toolVersion = '10.12.5'
+    configFile = file("${rootDir}/config/checkstyle/google_checks.xml")
+    ignoreFailures = false
+    showViolations = true
 }
 
 repositories {
@@ -55,6 +70,7 @@ dependencies {
 // Spotless configuration
 spotless {
     java {
+        licenseHeader('/*\n  Copyright (c) $YEAR, YashanDB Development Group.\n*/\n\n')
         googleJavaFormat("${googleJavaFormatVersion}")
         removeUnusedImports()
         trimTrailingWhitespace()
@@ -87,3 +103,42 @@ jar {
     // Exclude signature files to avoid security exceptions in fat JAR
     exclude 'META-INF/*.RSA', 'META-INF/*.SF', 'META-INF/*.DSA'
 }
+
+// JaCoCo 代码覆盖率配置
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+// 并行执行测试
+test {
+    maxParallelForks = Math.max(1, Runtime.runtime.availableProcessors().intdiv(2))
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            limit {
+                counter = 'LINE'
+                minimum = 0.90
+            }
+        }
+        rule {
+            limit {
+                counter = 'BRANCH'
+                minimum = 0.80
+            }
+        }
+    }
+}
+
+// 构建时强制执行覆盖率检查
+check.dependsOn jacocoTestCoverageVerification
